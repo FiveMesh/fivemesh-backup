@@ -1,0 +1,16 @@
+site_name: FiveMesh Backup
+docs_dir: docs
+theme:
+  name: material
+nav:
+  - Overview: index.md
+  - Linux: linux.md
+  - Windows scheduling: windows-task-scheduler.md
+  - Configuration: configuration.md
+  - Notifications: notifications.md
+  - Security: security.md
+  - Windows credentials: windows-security.md
+  - Architecture: architecture.md
+  - Testing: testing.md
+  - Release preparation: release.md
+  - Roadmap: roadmap.md

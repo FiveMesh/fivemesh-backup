@@ -1,0 +1,10 @@
+/bin/
+/dist/
+/coverage.out
+*.exe
+*.tmp
+*.partial-*
+__pycache__/
+*.pyc
+.DS_Store
+

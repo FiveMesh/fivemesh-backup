@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - windows-2022
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: gofmt -l . | tee /tmp/gofmt.out
+        if: runner.os == 'Linux'
+      - name: Check formatting
+        if: runner.os == 'Linux'
+        run: test ! -s /tmp/gofmt.out
+      - name: Report Windows operating system
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $os = Get-CimInstance -ClassName Win32_OperatingSystem
+          Write-Host "OS: $($os.Caption)"
+          Write-Host "Version: $($os.Version)"
+          Write-Host "Build: $($os.BuildNumber)"
+      - name: Parse PowerShell scripts
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem install, scripts -Filter '*.ps1' | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$($_.Message) at $($_.Extent.StartLineNumber)" }
+              throw "PowerShell syntax validation failed: $($_.FullName)"
+            }
+          }
+      - run: go vet ./...
+      - name: Check for known vulnerabilities
+        if: runner.os == 'Linux'
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - name: Test with race detector
+        if: runner.os == 'Linux'
+        run: go test -race ./...
+      - name: Test
+        if: runner.os == 'Windows'
+        run: go test ./...
+      - run: go build -trimpath ./cmd/fivemesh-backup
+      - name: Build Linux arm64
+        if: runner.os == 'Linux'
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: arm64
+        run: go build -trimpath ./cmd/fivemesh-backup
+      - name: Test local installer
+        if: runner.os == 'Linux'
+        run: bash install/test-install.sh
+

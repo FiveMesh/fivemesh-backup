@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go vet ./...
+      - name: Check for known vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - run: go test -race ./...
+      - run: bash install/test-install.sh
+
+      - name: Build artifacts
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          make release-artifacts \
+            VERSION="$VERSION" \
+            COMMIT="$(git rev-parse --short HEAD)" \
+            BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      # Build provenance lets anyone run `gh attestation verify <file> --repo FiveMesh/fivemesh-backup`.
+      # GitHub only offers attestations for public repositories on this plan.
+      - name: Attest build provenance
+        if: ${{ !github.event.repository.private }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/v${{ env.VERSION }}/*
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" \
+            --draft $prerelease \
+            --title "FiveMesh Backup $VERSION" \
+            --generate-notes \
+            dist/v$VERSION/*

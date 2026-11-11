@@ -1,0 +1,21 @@
+services:
+  mariadb:
+    image: mariadb:11.8
+    environment:
+      MARIADB_ROOT_PASSWORD: test-root-password
+    ports:
+      - "127.0.0.1:33306:3306"
+    volumes:
+      - ./fixture.sql:/docker-entrypoint-initdb.d/01-fixture.sql:ro
+    healthcheck:
+      test:
+        - CMD
+        - healthcheck.sh
+        - --connect
+        - --innodb_initialized
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    tmpfs:
+      - /var/lib/mysql
+

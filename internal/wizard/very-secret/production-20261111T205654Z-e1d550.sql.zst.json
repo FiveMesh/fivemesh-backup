@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "run_id": "wizard-test",
+  "profile": "production",
+  "database": "fxserver",
+  "engine": "mysql",
+  "created_at": "2026-11-11T20:56:54.2202696Z",
+  "compression": "zstd",
+  "compression_level": 1,
+  "sha256": "b753b54a132ce4a9a205b97160a87702a65c30d6171b80d5ac157a63d6460db1",
+  "size_bytes": 47,
+  "uncompressed_size_bytes": 34,
+  "dump_tool": "test",
+  "dump_tool_version": "",
+  "consistency": {
+    "single_transaction": false
+  }
+}

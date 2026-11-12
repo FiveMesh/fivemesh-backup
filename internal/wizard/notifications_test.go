@@ -91,3 +91,27 @@ func TestConfigureDiscordFailedTestCanBeSkipped(t *testing.T) {
 		t.Fatalf("output:\n%s", output.String())
 	}
 }
+
+func TestConfigureDiscordAcceptsDoublePastedWebhook(t *testing.T) {
+	var output bytes.Buffer
+	var sentTo string
+	prompt := NewPrompter(strings.NewReader(wizardTestWebhook+wizardTestWebhook+"\n\n\n"), &output)
+	setup, err := ConfigureDiscord(context.Background(), prompt, config.DiscordNotifications{}, "",
+		func(_ context.Context, webhook string, _ config.DiscordNotifications, _ notify.Event) error {
+			sentTo = webhook
+			return nil
+		})
+	if err != nil {
+		t.Fatalf("double-pasted webhook was rejected: %v\n%s", err, output.String())
+	}
+	if setup.WebhookURL != wizardTestWebhook || sentTo != wizardTestWebhook {
+		t.Fatalf("webhook = %q, test sent to %q", setup.WebhookURL, sentTo)
+	}
+	text := output.String()
+	if !strings.Contains(text, "pasted more than once") || !strings.Contains(text, "/api/webhooks/123456789012345678/") {
+		t.Fatalf("missing duplicate note or masked confirmation:\n%s", text)
+	}
+	if strings.Contains(text, "secret-token") {
+		t.Fatal("webhook token was shown")
+	}
+}

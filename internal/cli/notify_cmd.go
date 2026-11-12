@@ -128,9 +128,11 @@ func runNotify(ctx context.Context, args []string, stdin io.Reader, stdout, stde
 		if webhook == "" {
 			return withCode(exitUsage, errors.New("provide the webhook URL with --webhook-url-stdin, or run this command in a terminal"))
 		}
-		if err := notify.ValidateWebhookURL(webhook); err != nil {
+		normalized, _, err := notify.NormalizeWebhookURL(webhook)
+		if err != nil {
 			return withCode(exitUsage, err)
 		}
+		webhook = normalized
 		discord.Enabled = true
 		if *events != "" {
 			parsed, parseErr := parseNotifyEvents(*events)

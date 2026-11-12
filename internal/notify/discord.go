@@ -56,6 +56,44 @@ func ValidateWebhookURL(raw string) error {
 	return nil
 }
 
+var webhookInText = regexp.MustCompile(`(?i:https://(?:(?:ptb|canary)\.)?discord(?:app)?\.com)/api/(?:v[0-9]+/)?webhooks/[0-9]{15,22}/[A-Za-z0-9_.-]{20,}`)
+
+// NormalizeWebhookURL extracts the webhook URL from pasted text. Terminals
+// can deliver a paste twice (the terminal pastes and the input field also
+// handles Ctrl+V), and people copy URLs with quotes or angle brackets.
+func NormalizeWebhookURL(raw string) (webhook string, duplicated bool, err error) {
+	// Separate URLs that were glued together ("...TOKENhttps://...").
+	text := strings.ReplaceAll(raw, "https://", " https://")
+	matches := webhookInText.FindAllString(text, -1)
+	if len(matches) == 0 {
+		trimmed := strings.Trim(strings.TrimSpace(raw), "<>\"'`")
+		if strings.Count(strings.ToLower(trimmed), "https://") > 1 {
+			return "", false, errors.New("the pasted text contains more than one URL; paste the webhook URL once")
+		}
+		return "", false, ValidateWebhookURL(trimmed)
+	}
+	for _, match := range matches[1:] {
+		if match != matches[0] {
+			return "", false, errors.New("two different webhook URLs were pasted; paste only the one you want to use")
+		}
+	}
+	leftover := text
+	for _, match := range matches {
+		leftover = strings.Replace(leftover, match, "", 1)
+	}
+	leftover = strings.Trim(leftover, " \t\r\n<>\"'`")
+	switch {
+	case strings.HasPrefix(leftover, "?"):
+		return "", false, errors.New("webhook URLs with options after \"?\" (such as thread_id) are not supported; use the plain webhook URL")
+	case leftover != "":
+		return "", false, errors.New("the webhook URL has extra text around it; paste only the URL copied from Discord")
+	}
+	if err := ValidateWebhookURL(matches[0]); err != nil {
+		return "", false, err
+	}
+	return matches[0], len(matches) > 1, nil
+}
+
 // MaskWebhookURL shows enough of a webhook to recognise it without exposing
 // its token.
 func MaskWebhookURL(raw string) string {

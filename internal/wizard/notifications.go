@@ -67,10 +67,16 @@ func ConfigureDiscord(ctx context.Context, prompt *Prompter, current config.Disc
 			}
 			continue
 		}
-		if err := notify.ValidateWebhookURL(webhook); err != nil {
+		normalized, duplicated, err := notify.NormalizeWebhookURL(webhook)
+		if err != nil {
 			prompt.Fail(err.Error())
 			continue
 		}
+		webhook = normalized
+		if duplicated {
+			prompt.Note("The URL was pasted more than once; using it once.")
+		}
+		prompt.Success("Webhook " + notify.MaskWebhookURL(webhook))
 
 		presetIndex := 0
 		for index, preset := range eventPresets {

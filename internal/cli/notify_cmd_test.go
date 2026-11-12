@@ -174,3 +174,16 @@ type failingSender struct{}
 func (failingSender) Send(context.Context, notify.Event) error {
 	return errors.New("Discord is unavailable")
 }
+
+func TestNotifyDiscordStdinAcceptsDoublePastedWebhook(t *testing.T) {
+	paths := notifyTestPaths(t)
+	stubNotifySend(t, nil)
+	code, _, stderr := runNotifyCommand(t, paths, cliTestWebhook+cliTestWebhook+"\n", "discord", "--webhook-url-stdin")
+	if code != exitSuccess {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	credentials, _ := config.LoadCredentials(paths.Credentials)
+	if credentials.Notifications.DiscordWebhookURL != cliTestWebhook {
+		t.Fatalf("stored webhook = %q", credentials.Notifications.DiscordWebhookURL)
+	}
+}
